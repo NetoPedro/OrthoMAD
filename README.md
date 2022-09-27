@@ -9,7 +9,7 @@ Morphing attacks are one of the many threats that are constantly affecting deep 
 ## How to run
 
 Example command: 
-```
+```bash
 python3 code/train.py --train_csv_path="morgan_lma_train.csv" --test_csv_path="morgan_test.csv" --max_epoch=250 --batch_size=16 --latent_size=32 --lr=0.00001 --weight_loss=100
 ```
 
