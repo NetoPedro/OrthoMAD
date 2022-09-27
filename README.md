@@ -1,5 +1,5 @@
-# OrthoMAD
-Official repository for the OrthoMAD: Morphing Attack Detection Through Orthogonal Identity Disentanglement paper at BIOSIG 2022.
+# OrthoMAD: Morphing Attack Detection Through Orthogonal Identity Disentanglement
+Official repository for the OrthoMAD: Morphing Attack Detection Through Orthogonal Identity Disentanglement paper at [BIOSIG 2022](https://biosig.de).
 
 The paper can be viewed at: [arXiv](https://arxiv.org/abs/2208.07841)
 
@@ -7,7 +7,7 @@ The paper can be viewed at: [arXiv](https://arxiv.org/abs/2208.07841)
 
 Example command: 
 ```
-python3 train.py --train_csv_path="morgan_lma_train.csv" --test_csv_path="morgan_test.csv" --max_epoch=250 --batch_size=16 --latent_size=32 --lr=0.00001 --weight_loss=100
+python3 code/train.py --train_csv_path="morgan_lma_train.csv" --test_csv_path="morgan_test.csv" --max_epoch=250 --batch_size=16 --latent_size=32 --lr=0.00001 --weight_loss=100
 ```
 
 ## Acknowledgement
@@ -16,7 +16,7 @@ The code was extended from the initial code of [SMDD-Synthetic-Face-Morphing-Att
 ## Citation
 If you use our code or data in your research, please cite with:
 
-```
+```bibtex
 @article{neto2022orthomad,
   title={OrthoMAD: Morphing Attack Detection Through Orthogonal Identity Disentanglement},
   author={Neto, Pedro C and Gon{\c{c}}alves, Tiago and Huber, Marco and Damer, Naser and Sequeira, Ana F and Cardoso, Jaime S},

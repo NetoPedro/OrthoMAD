@@ -1,13 +1,10 @@
-import os
+# Imports
 import numpy as np
-import torch
-import shutil
-from torch.autograd import Variable
-import sklearn
-from sklearn import metrics
 from sklearn.metrics import roc_curve, auc
-from collections import defaultdict
 
+
+
+# Function: Returns the value of the given FMR operating point
 def get_apcer_op(apcer, bpcer, threshold, op):
     """Returns the value of the given FMR operating point
     Definition:
@@ -25,6 +22,9 @@ def get_apcer_op(apcer, bpcer, threshold, op):
     index = np.argmin(abs(apcer - op))
     return index, bpcer[index], threshold[index]
 
+
+
+# Returns the value of the given FNMR operating point
 def get_bpcer_op(apcer, bpcer, threshold, op):
     """Returns the value of the given FNMR operating point
     Definition:
@@ -45,6 +45,9 @@ def get_bpcer_op(apcer, bpcer, threshold, op):
 
     return index, apcer[index], threshold[index]
 
+
+
+# Function: Get EER Threshold
 def get_eer_threhold(fpr, tpr, threshold):
     differ_tpr_fpr_1=tpr+fpr-1.0
     index = np.nanargmin(np.abs(differ_tpr_fpr_1))
@@ -52,6 +55,9 @@ def get_eer_threhold(fpr, tpr, threshold):
 
     return eer, index, threshold[index]
 
+
+
+# Function: Computing performances
 def performances_compute(prediction_scores, gt_labels, threshold_type='eer', op_val=0.1, verbose=True):
     # fpr = apcer, 1-tpr = bpcer
     # op_val: 0 - 1
@@ -89,6 +95,7 @@ def performances_compute(prediction_scores, gt_labels, threshold_type='eer', op_
 
 
 
+# Function: Computing performances 2.0
 def performances_compute2(prediction_scores, gt_labels, threshold_type='eer', op_val=0.1, verbose=True):
     # fpr = apcer, 1-tpr = bpcer
     # op_val: 0 - 1
@@ -125,6 +132,8 @@ def performances_compute2(prediction_scores, gt_labels, threshold_type='eer', op
     return val_auc, bpcer, [threshold, threshold_APCER, threshold_BPCER, threshold_ACER]
 
 
+
+# Function: Evaluation based on threshold
 def evalute_threshold_based(prediction_scores, gt_labels, threshold):
     data = [{'map_score': score, 'label': label} for score, label in zip(prediction_scores, gt_labels)]
     num_real = len([s for s in data if s['label'] == 1])

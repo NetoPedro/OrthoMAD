@@ -1,6 +1,6 @@
+# Imports
 import os
 import copy
-import cv2
 import pandas as pd
 import numpy as np
 import csv
@@ -8,68 +8,22 @@ import logging
 from tqdm import tqdm
 from pathlib import Path
 
+# PyTorch Imports
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
-from torch.optim import lr_scheduler
-import torchvision
-from torchvision import transforms
-import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
-from resnet import Resnet34,Resnet18
-from utils import performances_compute,performances_compute2
+from torch.utils.data import DataLoader
 
-device = torch.device('cuda:3')
+# Project Imports
+from data_utils import FaceDataset
+from metrics_utils import performances_compute, performances_compute2
+from resnet_utils import Resnet34, Resnet18
 
-PRE__MEAN = [0.5, 0.5, 0.5]
-PRE__STD = [0.5, 0.5, 0.5]
-INPUT_SIZE = 224
-EarlyStopPatience = 50
 
-class FaceDataset(Dataset):
-    def __init__(self, file_name, is_train):
-        self.data = pd.read_csv(file_name)
-        self.is_train = is_train
-        
-        self.train_transform = transforms.Compose(
-            [
-             transforms.ToPILImage(),
-                transforms.Resize([INPUT_SIZE, INPUT_SIZE]),
-             transforms.RandomHorizontalFlip(),
-             transforms.ToTensor(),
-             transforms.Normalize(mean=PRE__MEAN,
-                                 std=PRE__STD),
-             ])
 
-        self.test_transform = transforms.Compose(
-            [           transforms.ToPILImage(),
-                transforms.Resize([INPUT_SIZE, INPUT_SIZE]),
-             transforms.ToTensor(),
-             transforms.Normalize(mean=PRE__MEAN,
-                                 std=PRE__STD),
-             ])
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, index):
-        image_path = self.data.iloc[index, 0]
-        label_str = self.data.iloc[index, 1]
-        label = 1 if label_str == 'bonafide' else 0
-
-        image=cv2.imread("../Morphing/"+image_path)
-        try:
-            if self.is_train:
-                image = self.train_transform(image)
-            else:
-                image = self.test_transform(image)
-        except ValueError:
-            print(image_path)
-
-        return image, label
-
-def train_fn(model, data_loader, data_size, optimizer, criterion,weight_loss):
+# Function: Train Function
+def train_fn(model, data_loader, data_size, optimizer, criterion, weight_loss, device):
     model.train()
 
     running_loss = 0.0
@@ -81,8 +35,7 @@ def train_fn(model, data_loader, data_size, optimizer, criterion,weight_loss):
 
         optimizer.zero_grad()
         outputs = model(inputs)
-        
-        
+
 
         loss_1 = criterion(outputs[2], labels)
         loss_2 = weight_loss * torch.bmm(outputs[0].view(outputs[2].shape[0], 1, -1), outputs[1].view(outputs[2].shape[0], -1, 1)).reshape(outputs[2].shape[0]).pow(2).mean()
@@ -104,9 +57,13 @@ def train_fn(model, data_loader, data_size, optimizer, criterion,weight_loss):
     epoch_acc = running_corrects.double() / data_size
 
     print('{} Loss: {:.4f} Loss C: {:.4f} Loss O: {:.4f} Acc: {:.4f}'.format('Train', epoch_loss,epoch_loss_1,epoch_loss_2, epoch_acc))
+
     return epoch_loss, epoch_acc
 
-def eval_fn(model, data_loader, data_size, criterion):
+
+
+# Function: Evaluation Function
+def eval_fn(model, data_loader, data_size, criterion, device):
     model.eval()
 
     with torch.no_grad():
@@ -129,8 +86,10 @@ def eval_fn(model, data_loader, data_size, criterion):
 
             running_loss += loss.item() * inputs.size(0)
             running_corrects += torch.sum(preds == labels.data)
-        #import pdb
-        #pdb.set_trace()
+        
+        # import pdb
+        # pdb.set_trace()
+        
         epoch_loss = running_loss / data_size
         epoch_acc = running_corrects.double() / data_size
         auc, eer_value, _ = performances_compute(prediction_scores, gt_labels, verbose=False)
@@ -142,9 +101,13 @@ def eval_fn(model, data_loader, data_size, criterion):
 
         print('{} Loss: {:.4f} Auc: {:.4f} EER: {:.4f} MinP {:.4f} MaxP {:.4f}'.format('Val', epoch_loss, auc, eer_value,min(prediction_scores),max(prediction_scores)))
         print('{} BPCER 0.1: {:.4f} BPCER 1.0: {:.4f} BPCER 10.0 {:.4f} BPCER 20.0 {:.4f}'.format('val',bpcer01,bpcer1,bpcer10,bpcer20))
+    
     return epoch_loss, epoch_acc, eer_value, bpcer20, bpcer10, bpcer1, bpcer01
 
-def run_training(model, model_path, logging_path, normedWeights, num_epochs, dataloaders, dataset_sizes,lr,weight_loss,output_name):
+
+
+# Function: Run training
+def run_training(model, model_path, device, logging_path, num_epochs, dataloaders, dataset_sizes, lr, weight_loss, output_name, earlystop_patience=50):
     model = model.to(device)
     criterion = nn.BCELoss().to(device)
     optimizer=optim.Adam(model.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=1e-5)
@@ -165,8 +128,8 @@ def run_training(model, model_path, logging_path, normedWeights, num_epochs, dat
         logging.info('Epoch {}/{}'.format(epoch, num_epochs - 1))
         logging.info('-' * 10)
         # Each epoch has a training and validation phase
-        train_loss, train_acc = train_fn(model, dataloaders['train'], dataset_sizes['train'], optimizer, criterion,weight_loss)
-        val_loss, val_acc, val_eer_values,out_20,out_10,out_1,out_01 = eval_fn(model, dataloaders['val'], dataset_sizes['val'], criterion)
+        train_loss, train_acc = train_fn(model, dataloaders['train'], dataset_sizes['train'], optimizer, criterion, weight_loss, device=device)
+        val_loss, val_acc, val_eer_values,out_20,out_10,out_1,out_01 = eval_fn(model, dataloaders['val'], dataset_sizes['val'], criterion, device=device)
         logging.info('train loss: {}, train acc: {}, val loss: {}, val acc: {}, val eer: {}'.format(train_loss, train_acc, val_loss, val_acc, val_eer_values))
 
         # deep copy the model
@@ -181,7 +144,7 @@ def run_training(model, model_path, logging_path, normedWeights, num_epochs, dat
         else:
             epochs_no_improve += 1
 
-        if epochs_no_improve == EarlyStopPatience or epoch >= num_epochs:
+        if epochs_no_improve == earlystop_patience or epoch >= num_epochs:
             early_stop = True
         else:
             continue
@@ -203,7 +166,10 @@ def run_training(model, model_path, logging_path, normedWeights, num_epochs, dat
     # save best model weights
     torch.save(best_model_wts, model_path)
 
-def run_test(test_loader, model, model_path, batch_size=64):
+
+
+# Function: Run test
+def run_test(test_loader, model, model_path, device):
     model = model.to(device)
     model.load_state_dict(torch.load(model_path))
     model.eval()
@@ -224,9 +190,12 @@ def run_test(test_loader, model, model_path, batch_size=64):
         prediction_scores = [ (float(i) - mean_value) /(std_value) for i in prediction_scores]
         _, eer_value, _ = performances_compute(prediction_scores, gt_labels, verbose=False)
         print(f'Test EER value: {eer_value*100}')
-        
+
     return prediction_scores
 
+
+
+# Function: Write scores to a .CSV file
 def write_scores(test_csv, prediction_scores, output_path):
     save_data = []
     dataframe = pd.read_csv(test_csv)
@@ -245,8 +214,14 @@ def write_scores(test_csv, prediction_scores, output_path):
 
     print(f'Saving prediction scores in {output_path}.')
 
+
+
+# Function: Main
 def main(args):
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
+
+
+    device = f"cuda:{args.gpu_id}" if torch.cuda.is_available() else "cpu"
     
 
     models = ["resnet18"]
@@ -278,13 +253,13 @@ def main(args):
                         bonafide_num += 1
             print('attack and bonafide num:', attack_num, bonafide_num)
 
-            nSamples  = [attack_num, bonafide_num]
-            normedWeights = [1 - (x / sum(nSamples)) for x in nSamples]
-            normedWeights = torch.FloatTensor(normedWeights).to(device)
+            # nSamples  = [attack_num, bonafide_num]
+            # normedWeights = [1 - (x / sum(nSamples)) for x in nSamples]
+            # normedWeights = torch.FloatTensor(normedWeights).to(device)
 
             #create log file and train model
             logging_path = os.path.join(args.output_dir, 'train_info.log')
-            run_training(model, args.model_path, logging_path, normedWeights, args.max_epoch, dataloaders, dataset_sizes,args.lr,args.weight_loss,output_name=model_name)
+            run_training(model, args.model_path, logging_path, args.max_epoch, dataloaders, dataset_sizes,args.lr,args.weight_loss,output_name=model_name)
 
         if args.is_test:
             # create save directory and path
@@ -294,10 +269,12 @@ def main(args):
             # test
             test_dataset = FaceDataset(file_name=args.test_csv_path, is_train=False)
             test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
-            test_prediction_scores = run_test(test_loader=test_loader, model=model, model_path=args.model_path)
+            test_prediction_scores = run_test(test_loader=test_loader, model=model, model_path=args.model_path, device=device)
             write_scores(args.test_csv_path, test_prediction_scores, test_output_path)
 
 
+
+# Main
 if __name__ == '__main__':
 
     cudnn.benchmark = True
@@ -325,6 +302,8 @@ if __name__ == '__main__':
     parser.add_argument("--latent_size", default=64, type=int, help="train batch size")
     parser.add_argument("--lr", default=0.1, type=float, help="train batch size")
     parser.add_argument("--weight_loss", default=1, type=float, help="train batch size")
+
+    parser.add_argument("--gpu_id", type=int, default=3, help="The index of the GPU.")
 
     args = parser.parse_args()
 
