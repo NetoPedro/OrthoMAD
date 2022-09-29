@@ -1,6 +1,10 @@
-@article{neto2022orthomad,
-  title={OrthoMAD: Morphing Attack Detection Through Orthogonal Identity Disentanglement},
-  author={Neto, Pedro C and Gon{\c{c}}alves, Tiago and Huber, Marco and Damer, Naser and Sequeira, Ana F and Cardoso, Jaime S},
-  journal={arXiv preprint arXiv:2208.07841},
-  year={2022}
-}
+@INPROCEEDINGS{neto2022orthomad,
+  author={Neto, Pedro C. and Gonçalves, Tiago and Huber, Marco and Damer, Naser and Sequeira, Ana F. and Cardoso, Jaime S.},
+  booktitle={2022 International Conference of the Biometrics Special Interest Group (BIOSIG)}, 
+  title={OrthoMAD: Morphing Attack Detection Through Orthogonal Identity Disentanglement}, 
+  year={2022},
+  volume={},
+  number={},
+  pages={1-5},
+  doi={10.1109/BIOSIG55365.2022.9897057}}
+  
